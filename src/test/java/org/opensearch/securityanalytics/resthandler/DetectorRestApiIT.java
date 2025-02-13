@@ -40,21 +40,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.opensearch.securityanalytics.TestHelpers.productIndexAvgAggRule;
-import static org.opensearch.securityanalytics.TestHelpers.productIndexCountAggRule;
-import static org.opensearch.securityanalytics.TestHelpers.productIndexMapping;
-import static org.opensearch.securityanalytics.TestHelpers.randomDetector;
-import static org.opensearch.securityanalytics.TestHelpers.randomDetectorType;
-import static org.opensearch.securityanalytics.TestHelpers.randomDetectorWithInputs;
-import static org.opensearch.securityanalytics.TestHelpers.randomDetectorWithInputsAndTriggers;
-import static org.opensearch.securityanalytics.TestHelpers.randomDetectorWithTriggers;
-import static org.opensearch.securityanalytics.TestHelpers.randomDetectorWithTriggersAndScheduleAndEnabled;
-import static org.opensearch.securityanalytics.TestHelpers.randomDoc;
-import static org.opensearch.securityanalytics.TestHelpers.randomIndex;
-import static org.opensearch.securityanalytics.TestHelpers.randomProductDocument;
-import static org.opensearch.securityanalytics.TestHelpers.randomProductDocumentWithTime;
-import static org.opensearch.securityanalytics.TestHelpers.randomRule;
-import static org.opensearch.securityanalytics.TestHelpers.windowsIndexMapping;
+import static org.opensearch.securityanalytics.TestHelpers.*;
 import static org.opensearch.securityanalytics.settings.SecurityAnalyticsSettings.ENABLE_WORKFLOW_USAGE;
 
 public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
@@ -422,6 +408,90 @@ public class DetectorRestApiIT extends SecurityAnalyticsRestTestCase {
         } catch (ResponseException ex) {
             Assert.assertEquals(404, ex.getResponse().getStatusLine().getStatusCode());
         }
+    }
+
+    public void testCreateADetectorWithKeywordAndTextFields() throws IOException {
+        // list of rules
+        final var rules = List.of(
+                new DetectorRule(createRule(textExactMatchRule())),
+                new DetectorRule(createRule(textContainsRule())),
+                new DetectorRule(createRule(textStartsWithRule())),
+                new DetectorRule(createRule(textEndsWithRule())),
+                new DetectorRule(createRule(keywordExactMatchRule()))
+        );
+
+        // enable workflow usage
+        updateClusterSetting(ENABLE_WORKFLOW_USAGE.getKey(), "true");
+
+
+        // create test index with mapping (step 01)
+        final var index = createTestIndex(randomIndex(), keywordAndTextIndexMapping());
+        // verify index creation
+        assertTrue(indexExists(index));
+
+        System.out.println("PASSED 01");
+
+
+        // create detector with rules (step 02)
+        final var input = new DetectorInput("simple detector to test strings", List.of("windows"), rules, Collections.emptyList());
+        final var detector = randomDetectorWithInputs(List.of(input));
+        final var createDetectorResponse = makeRequest(client(), "POST", SecurityAnalyticsPlugin.DETECTOR_BASE_URI, Collections.emptyMap(), toHttpEntity(detector));
+        assertEquals("Create detector failed", RestStatus.CREATED, restStatus(createDetectorResponse));
+        // verify detector creation
+        final var detectorId = asMap(createDetectorResponse).get("_id").toString();
+        final var request = "{\n" +
+                            "   \"query\" : {\n" +
+                            "     \"match\":{\n" +
+                            "        \"_id\": \"" + detectorId + "\"\n" +
+                            "     }\n" +
+                            "   }\n" +
+                            "}";
+        var hits = executeSearch(Detector.DETECTORS_INDEX, request);
+        final var detectorMap = (HashMap<String, Object>) (hits.get(0).getSourceAsMap().get("detector"));
+        final var monitorIds = ((List<String>) (detectorMap).get("monitor_id"));
+        assertEquals(1, monitorIds.size());
+
+
+        System.out.println("PASSED 02");
+
+        // verify alerting monitor creation
+        final var getMonitorResponse = getAlertingMonitor(client(), monitorIds.get(0));
+        final var alertingMonitor = asMap(getMonitorResponse);
+        assertNotNull(alertingMonitor);
+
+
+        // index documents (step 03)
+        indexDoc(index, "1", keywordAndTextDoc());
+        // verify document indexing using exact match on keyword field
+        final var query = "{\n" +
+                "    \"query\": {\n" +
+                "        \"query_string\": {\n" +
+                "            \"field_keyword\": \"user.name: \\\"This string here could be anything.\\\"\"\n" +
+                "         }\n" +
+                "     }\n" +
+                "}";
+        hits = executeSearch(index, query);
+        //final var searchHits = (HashMap<String, Object>) (hits.get(0).getSourceAsMap());
+        //assertNotNull(searchHits);
+
+
+        System.out.println("PASSED 03");
+
+        // execute alerting workflow (step 04)
+        final var workflowId = ((List<String>) detectorMap.get("workflow_ids")).get(0);
+        final var executeResponse = executeAlertingWorkflow(workflowId, Collections.emptyMap());
+
+
+        // verify monitor run results
+        final var monitorRunResults = (List<Map<String, Object>>) entityAsMap(executeResponse).get("monitor_run_results");
+        assertEquals(1, monitorRunResults.size()); // how many monitors were executed?
+
+        final var docLevelQueryResults = ((List<Map<String, Object>>) ((Map<String, Object>) monitorRunResults.get(0).get("input_results")).get("results")).get(0);
+        assertEquals(5, docLevelQueryResults.size()); // how many rules were matched?
+
+        final var queryId = docLevelQueryResults.keySet().stream().findAny().get();
+        final var docs = (ArrayList<String>) docLevelQueryResults.get(queryId);
+        assertEquals(1, docs.size()); // how many documents were matched?
     }
 
     /**

@@ -286,6 +286,116 @@ public class TestHelpers {
                 "level: high";
     }
 
+    public static String textExactMatchRule() {
+        return "title: Rule Detecting an Exact Match on a Text\n" +
+               "id: 1f2b5353-573f-4880-8e33-7d04dcf97755\n" +
+               "description: It does detect the whole match in the text typed field.\n" +
+               "references:\n" +
+               "    - https://anything.com.br\n" +
+               "tags:\n" +
+               "    - nothing\n" +
+               "status: experimental\n" +
+               "author: rios0rios0\n" +
+               "date: 2025/01/31\n" +
+               "logsource:\n" +
+               "    product: windows\n" +
+               "detection:\n" +
+               "    selection:\n" +
+               "        field_text: 'This string here could be anything.'\n" +
+               "    condition: selection\n"+
+               "falsepositives:\n" +
+               "    - Nothing to worry about\n" +
+               "level: high";
+    }
+
+    public static String textContainsRule() {
+        return "title: Rule Detecting a Contains on a Text\n" +
+               "id: 1f2b5353-573f-4880-8e33-7d04dcf97755\n" +
+               "description: It does detect the middle piece in the text typed field.\n" +
+               "references:\n" +
+               "    - https://anything.com.br\n" +
+               "tags:\n" +
+               "    - nothing\n" +
+               "status: experimental\n" +
+               "author: rios0rios0\n" +
+               "date: 2025/01/31\n" +
+               "logsource:\n" +
+               "    product: windows\n" +
+               "detection:\n" +
+               "    selection:\n" +
+               "        field_text|contains: 'here could be'\n" +
+               "    condition: selection\n"+
+               "falsepositives:\n" +
+               "    - Nothing to worry about\n" +
+               "level: high";
+    }
+
+    public static String textStartsWithRule() {
+        return "title: Rule Detecting a Starting on a Text\n" +
+               "id: 1f2b5353-573f-4880-8e33-7d04dcf97755\n" +
+               "description: It does detect just the initial part in the text typed field.\n" +
+               "references:\n" +
+               "    - https://anything.com.br\n" +
+               "tags:\n" +
+               "    - nothing\n" +
+               "status: experimental\n" +
+               "author: rios0rios0\n" +
+               "date: 2025/01/31\n" +
+               "logsource:\n" +
+               "    product: windows\n" +
+               "detection:\n" +
+               "    selection:\n" +
+               "        field_text|startswith: 'This string'\n" +
+               "    condition: selection\n"+
+               "falsepositives:\n" +
+               "    - Nothing to worry about\n" +
+               "level: high";
+    }
+
+    public static String textEndsWithRule() {
+        return "title: Rule Detecting an Ending Match on a Text\n" +
+               "id: 1f2b5353-573f-4880-8e33-7d04dcf97755\n" +
+               "description: It does detect the just the ending in the text typed field.\n" +
+               "references:\n" +
+               "    - https://anything.com.br\n" +
+               "tags:\n" +
+               "    - nothing\n" +
+               "status: experimental\n" +
+               "author: rios0rios0\n" +
+               "date: 2025/01/31\n" +
+               "logsource:\n" +
+               "    product: windows\n" +
+               "detection:\n" +
+               "    selection:\n" +
+               "        field_text|endswith: 'be anything.'\n" +
+               "    condition: selection\n"+
+               "falsepositives:\n" +
+               "    - Nothing to worry about\n" +
+               "level: high";
+    }
+
+    public static String keywordExactMatchRule() {
+        return "title: Rule Detecting an Exact Match on a Keyword\n" +
+               "id: 1f2b5353-573f-4880-8e33-7d04dcf97755\n" +
+               "description: It does detect the whole match in the keyword typed field.\n" +
+               "references:\n" +
+               "    - https://anything.com.br\n" +
+               "tags:\n" +
+               "    - nothing\n" +
+               "status: experimental\n" +
+               "author: rios0rios0\n" +
+               "date: 2025/01/31\n" +
+               "logsource:\n" +
+               "    product: windows\n" +
+               "detection:\n" +
+               "    selection:\n" +
+               "        field_keyword: 'This string here could be anything.'\n" +
+               "    condition: selection\n"+
+               "falsepositives:\n" +
+               "    - Nothing to worry about\n" +
+               "level: high";
+    }
+
     public static String randomRuleWithRawField() {
         return "title: Remote Encrypting File System Abuse\n" +
                 "id: 5f92fff9-82e2-48eb-8fc1-8b133556a551\n" +
@@ -1194,6 +1304,14 @@ public class TestHelpers {
                 "    - attack.t1078";
     }
 
+    public static String keywordAndTextIndexMapping() {
+        return "\"properties\": {\n" +
+               "  \"@timestamp\": { \"type\": \"date\" },\n" +
+               "  \"field_text\": { \"type\": \"text\" },\n" +
+               "  \"field_keyword\": { \"type\": \"keyword\" }\n" +
+           "}";
+    }
+
     public static String cloudtrailOcsfMappings() {
         return "\"properties\": {\n" +
                 "      \"time\": {\n" +
@@ -1984,6 +2102,14 @@ public class TestHelpers {
                 "}";
         return String.format(Locale.ROOT, doc, severity, version, opCode);
 
+    }
+
+    public static String keywordAndTextDoc() {
+           return "{\n" +
+           "  \"@timestamp\": \"2025-01-31T00:00:00.000000+00:00\",\n" +
+           "  \"field_text\": \"This string here could be anything.\",\n" +
+           "  \"field_keyword\": \"This string here could be anything.\"\n" +
+           "}";
     }
 
     public static String randomDocForNotCondition(int severity, int version, String opCode) {
